@@ -18,7 +18,6 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
   List<Client> _clients = [];
   List<Service> _services = [];
-
   Client? _selectedClient;
 
   @override
@@ -27,21 +26,21 @@ class _ServicesScreenState extends State<ServicesScreen> {
     _loadClients();
   }
 
+  String _fmtDate(DateTime d) {
+    return '${d.day.toString().padLeft(2, '0')}/'
+        '${d.month.toString().padLeft(2, '0')}/'
+        '${d.year}';
+  }
+
   Future<void> _loadClients() async {
     final data = await _clientDao.getAll();
-    setState(() {
-      _clients = data;
-    });
+    setState(() => _clients = data);
   }
 
   Future<void> _loadServices() async {
     if (_selectedClient == null) return;
-
     final data = await _serviceDao.getByClient(_selectedClient!.id!);
-
-    setState(() {
-      _services = data;
-    });
+    setState(() => _services = data);
   }
 
   void _openServiceForm({Service? service}) {
@@ -51,10 +50,15 @@ class _ServicesScreenState extends State<ServicesScreen> {
       context: context,
       isScrollControlled: true,
       builder: (_) => ServiceForm(
-        clientId: _selectedClient!.id!, // ✅ CORRETO
+        clientId: _selectedClient!.id!,
         service: service,
-        onSave: (Service s) async {     // ✅ RECEBE O SERVICE
-          await _serviceDao.insert(s);
+        onSave: (Service s) async {
+          // ✅ se veio com id, é edição
+          if (service == null) {
+            await _serviceDao.insert(s);
+          } else {
+            await _serviceDao.update(s);
+          }
           await _loadServices();
         },
         onDelete: service == null
@@ -67,33 +71,53 @@ class _ServicesScreenState extends State<ServicesScreen> {
     );
   }
 
+  Future<void> _confirmDelete(Service s) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Excluir serviço'),
+        content: Text('Deseja excluir "${s.title}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Excluir', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    );
+
+    if (ok == true) {
+      await _serviceDao.delete(s.id!);
+      await _loadServices();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('Serviços')),
-
       floatingActionButton: _selectedClient == null
           ? null
           : FloatingActionButton(
               onPressed: () => _openServiceForm(),
               child: const Icon(Icons.add),
             ),
-
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            /// 🔽 SELECT CLIENTE
             DropdownButtonFormField<Client>(
               value: _selectedClient,
               hint: const Text('Selecione um cliente'),
               items: _clients
-                  .map(
-                    (c) => DropdownMenuItem(
-                      value: c,
-                      child: Text(c.name),
-                    ),
-                  )
+                  .map((c) => DropdownMenuItem(
+                        value: c,
+                        child: Text(c.name),
+                      ))
                   .toList(),
               onChanged: (client) async {
                 setState(() {
@@ -103,50 +127,51 @@ class _ServicesScreenState extends State<ServicesScreen> {
                 await _loadServices();
               },
             ),
-
             const SizedBox(height: 16),
-
-            /// 📋 LISTA DE SERVIÇOS
             Expanded(
-              child: _services.isEmpty
-                  ? const Center(
-                      child: Text(
-                        'Nenhum serviço cadastrado',
-                        style: TextStyle(color: Colors.grey),
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _services.length,
-                      itemBuilder: (context, index) {
-                        final s = _services[index];
-
-                        return Card(
-                          child: ListTile(
-                            title: Text(s.description),
-                            subtitle: Text(
-                              'R\$ ${s.value.toStringAsFixed(2)}',
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                IconButton(
-                                  icon: const Icon(Icons.edit),
-                                  onPressed: () =>
-                                      _openServiceForm(service: s),
-                                ),
-                                IconButton(
-                                  icon: const Icon(Icons.delete),
-                                  onPressed: () async {
-                                    await _serviceDao.delete(s.id!);
-                                    await _loadServices();
-                                  },
-                                ),
-                              ],
-                            ),
+              child: _selectedClient == null
+                  ? const Center(child: Text('Selecione um cliente para ver os serviços'))
+                  : _services.isEmpty
+                      ? const Center(
+                          child: Text(
+                            'Nenhum serviço cadastrado',
+                            style: TextStyle(color: Colors.grey),
                           ),
-                        );
-                      },
-                    ),
+                        )
+                      : ListView.builder(
+                          itemCount: _services.length,
+                          itemBuilder: (_, index) {
+                            final s = _services[index];
+
+                            return Card(
+                              child: ListTile(
+                                leading: s.remindDelivery
+                                    ? const Icon(Icons.notifications_active, color: Colors.orange)
+                                    : const Icon(Icons.work),
+                                title: Text(s.title),
+                                subtitle: Text(
+                                  'R\$ ${s.value.toStringAsFixed(2)} • Entrega: ${_fmtDate(s.deliveryDate)}'
+                                  '${s.details.trim().isEmpty ? '' : '\n${s.details}'}',
+                                ),
+                                isThreeLine: s.details.trim().isNotEmpty,
+                                onTap: () => _openServiceForm(service: s),
+                                trailing: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit),
+                                      onPressed: () => _openServiceForm(service: s),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete, color: Colors.red),
+                                      onPressed: () => _confirmDelete(s),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),

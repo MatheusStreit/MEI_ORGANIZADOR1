@@ -1,20 +1,19 @@
-import 'package:sqflite/sqflite.dart';
 import 'app_database.dart';
 import '../models/service.dart';
 
 class ServiceDao {
   Future<List<Service>> getByClient(int clientId) async {
-  final db = await AppDatabase.database;
+    final db = await AppDatabase.database;
 
-  final maps = await db.query(
-    'services',
-    where: 'client_id = ?',
-    whereArgs: [clientId],
-    orderBy: 'date DESC',
-  );
+    final maps = await db.query(
+      'services',
+      where: 'client_id = ?',
+      whereArgs: [clientId],
+      orderBy: 'delivery_date ASC', // ✅ melhor para entregas
+    );
 
-  return maps.map((e) => Service.fromMap(e)).toList();
-}
+    return maps.map((e) => Service.fromMap(e)).toList();
+  }
 
   Future<void> insert(Service service) async {
     final db = await AppDatabase.database;

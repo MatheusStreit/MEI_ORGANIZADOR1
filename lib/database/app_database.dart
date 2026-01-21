@@ -15,7 +15,7 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 2, // ⬅️ AUMENTE A VERSÃO
+      version: 3, // ⬅️ AUMENTE A VERSÃO
       onCreate: (db, version) async {
         await _createTables(db);
       },
@@ -44,10 +44,15 @@ class AppDatabase {
     await db.execute('''
       CREATE TABLE services (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-        client_id INTEGER,
-        description TEXT,
-        value REAL,
-        date INTEGER
+        client_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        details TEXT,
+        value REAL NOT NULL,
+        date INTEGER NOT NULL,
+        delivery_date INTEGER NOT NULL,
+        remind_delivery INTEGER NOT NULL DEFAULT 0,
+        remind_days_before INTEGER NOT NULL DEFAULT 1,
+        FOREIGN KEY (client_id) REFERENCES clients (id)
       )
     ''');
   }
