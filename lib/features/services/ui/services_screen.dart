@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import '../database/client_dao.dart';
-import '../database/service_dao.dart';
-import '../models/client.dart';
-import '../models/service.dart';
+import '../../clients/data/client_dao.dart';
+import '../data/service_dao.dart';
+import '../../clients/domain/client.dart';
+import '../domain/service.dart';
 import 'forms/service_form.dart';
 
 class ServicesScreen extends StatefulWidget {
@@ -34,12 +34,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
 
   Future<void> _loadClients() async {
     final data = await _clientDao.getAll();
+    if (!mounted) return;
     setState(() => _clients = data);
   }
 
   Future<void> _loadServices() async {
     if (_selectedClient == null) return;
     final data = await _serviceDao.getByClient(_selectedClient!.id!);
+    if (!mounted) return;
     setState(() => _services = data);
   }
 
@@ -49,22 +51,28 @@ class _ServicesScreenState extends State<ServicesScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
+      showDragHandle: true,
       builder: (_) => ServiceForm(
         clientId: _selectedClient!.id!,
         service: service,
         onSave: (Service s) async {
-          // ✅ se veio com id, é edição
           if (service == null) {
             await _serviceDao.insert(s);
           } else {
             await _serviceDao.update(s);
           }
+
+          if (!context.mounted) return;
+          Navigator.pop(context);
           await _loadServices();
         },
         onDelete: service == null
             ? null
             : () async {
                 await _serviceDao.delete(service.id!);
+
+                if (!context.mounted) return;
+                Navigator.pop(context);
                 await _loadServices();
               },
       ),
@@ -96,6 +104,14 @@ class _ServicesScreenState extends State<ServicesScreen> {
     }
   }
 
+  String _clientLabel(Client c) {
+    final nf = c.nomeFantasia.trim();
+    final rs = c.razaoSocial.trim();
+    if (nf.isEmpty) return rs;
+    if (rs.isEmpty) return nf;
+    return '$nf • $rs';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -114,10 +130,12 @@ class _ServicesScreenState extends State<ServicesScreen> {
               value: _selectedClient,
               hint: const Text('Selecione um cliente'),
               items: _clients
-                  .map((c) => DropdownMenuItem(
-                        value: c,
-                        child: Text(c.name),
-                      ))
+                  .map(
+                    (c) => DropdownMenuItem(
+                      value: c,
+                      child: Text(_clientLabel(c)),
+                    ),
+                  )
                   .toList(),
               onChanged: (client) async {
                 setState(() {
@@ -143,6 +161,10 @@ class _ServicesScreenState extends State<ServicesScreen> {
                           itemBuilder: (_, index) {
                             final s = _services[index];
 
+                            final valueText = s.value == null
+                                ? 'Sem valor'
+                                : 'R\$ ${s.value!.toStringAsFixed(2)}';
+
                             return Card(
                               child: ListTile(
                                 leading: s.remindDelivery
@@ -150,7 +172,7 @@ class _ServicesScreenState extends State<ServicesScreen> {
                                     : const Icon(Icons.work),
                                 title: Text(s.title),
                                 subtitle: Text(
-                                  'R\$ ${s.value.toStringAsFixed(2)} • Entrega: ${_fmtDate(s.deliveryDate)}'
+                                  '$valueText • Entrega: ${_fmtDate(s.deliveryDate)}'
                                   '${s.details.trim().isEmpty ? '' : '\n${s.details}'}',
                                 ),
                                 isThreeLine: s.details.trim().isNotEmpty,

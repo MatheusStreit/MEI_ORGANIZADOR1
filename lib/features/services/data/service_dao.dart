@@ -1,5 +1,5 @@
-import 'app_database.dart';
-import '../models/service.dart';
+import '../../../data/db/app_database.dart';
+import '../domain/service.dart';
 
 class ServiceDao {
   Future<List<Service>> getByClient(int clientId) async {
@@ -9,15 +9,16 @@ class ServiceDao {
       'services',
       where: 'client_id = ?',
       whereArgs: [clientId],
-      orderBy: 'delivery_date ASC', // ✅ melhor para entregas
+      orderBy: 'delivery_date ASC',
     );
 
     return maps.map((e) => Service.fromMap(e)).toList();
   }
 
-  Future<void> insert(Service service) async {
+  // ✅ Agora retorna o ID gerado pelo SQLite
+  Future<int> insert(Service service) async {
     final db = await AppDatabase.database;
-    await db.insert('services', service.toMap());
+    return await db.insert('services', service.toMap());
   }
 
   Future<void> update(Service service) async {
