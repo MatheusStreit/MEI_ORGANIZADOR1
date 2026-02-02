@@ -1,5 +1,7 @@
 import '../../../data/db/app_database.dart';
 import '../domain/budget.dart';
+import 'package:mei_organizador1/features/budgets/models/orcamento.dart';
+
 
 class BudgetDao {
   Future<List<Budget>> getAll({int? clientId}) async {

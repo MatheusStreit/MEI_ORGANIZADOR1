@@ -1,10 +1,8 @@
-import 'orcamento_item.dart';
-
 class Orcamento {
   final int id;
   final String clienteNome;
   final String? clienteTelefone;
-  final String? clienteDocumento;
+  final String? clienteDocumento; // CPF/CNPJ
   final DateTime data;
   final DateTime? validade;
   final List<OrcamentoItem> itens;
@@ -23,9 +21,7 @@ class Orcamento {
     this.taxa,
   });
 
-  double get subtotal =>
-      itens.fold(0, (a, b) => a + (b.qtd * b.valorUnit));
-
+  double get subtotal => itens.fold(0, (a, b) => a + (b.qtd * b.valorUnit));
   double get total => subtotal - desconto + (taxa ?? 0);
 }
 
