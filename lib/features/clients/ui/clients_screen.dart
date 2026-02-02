@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import '../data/client_dao.dart';
 import '../domain/client.dart';
-import '../../../screens/forms/client_form.dart';
+import 'forms/client_form.dart';
 
 class ClientsScreen extends StatefulWidget {
   const ClientsScreen({super.key});

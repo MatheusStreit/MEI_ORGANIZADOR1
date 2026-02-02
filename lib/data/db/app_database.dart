@@ -15,7 +15,11 @@ class AppDatabase {
 
     return openDatabase(
       path,
-      version: 5, // <<< subiu para forçar upgrade do clients
+      version: 6, // ✅ subiu para criar tabelas de orçamentos
+      onConfigure: (db) async {
+        // ✅ necessário para ON DELETE CASCADE funcionar
+        await db.execute('PRAGMA foreign_keys = ON');
+      },
       onCreate: (db, version) async {
         await _createTables(db);
       },
@@ -26,13 +30,13 @@ class AppDatabase {
   }
 
   static Future<void> _migrate(Database db, int oldVersion, int newVersion) async {
-    // Garante tabelas base
+    // Garante tabelas base (caso venha de versão muito antiga)
     if (oldVersion < 2) {
       await _createClientsTableIfNeeded(db);
       await _createServicesTableIfNeeded(db);
     }
 
-    // Ajustes que você já tinha para services
+    // Ajustes antigos em services (mantive)
     if (oldVersion < 3) {
       final columns = await _getTableColumns(db, 'services');
       if (!columns.contains('title')) {
@@ -41,7 +45,7 @@ class AppDatabase {
       }
     }
 
-    // ✅ Migração do clients antigo (name/phone/email) -> novo schema
+    // Migração clients antigo -> novo (mantive)
     if (oldVersion < 5) {
       final columns = await _getTableColumns(db, 'clients');
 
@@ -51,7 +55,6 @@ class AppDatabase {
         }
       }
 
-      // adiciona novas colunas
       await addCol('nome_fantasia', 'TEXT');
       await addCol('razao_social', 'TEXT');
       await addCol('cnpj', 'TEXT');
@@ -64,9 +67,7 @@ class AppDatabase {
       await addCol('numero', 'TEXT');
       await addCol('cep', 'TEXT');
 
-      // migra dados existentes do schema antigo (se existirem)
       final columnsAfter = await _getTableColumns(db, 'clients');
-
       final hasOldName = columnsAfter.contains('name');
       final hasOldPhone = columnsAfter.contains('phone');
       final hasNewNome = columnsAfter.contains('nome_fantasia');
@@ -87,9 +88,12 @@ class AppDatabase {
           WHERE contato IS NULL OR contato = ''
         """);
       }
+    }
 
-      // Se quiser reaproveitar o email antigo também (você já tinha email antes):
-      // email continua existindo no schema, então não precisa migrar.
+    // ✅ V6: criar tabelas de orçamentos
+    if (oldVersion < 6) {
+      await _createBudgetsTableIfNeeded(db);
+      await _createBudgetItemsTableIfNeeded(db);
     }
   }
 
@@ -101,14 +105,14 @@ class AppDatabase {
   static Future<void> _createTables(Database db) async {
     await _createClientsTableIfNeeded(db);
     await _createServicesTableIfNeeded(db);
+    await _createBudgetsTableIfNeeded(db);       // ✅
+    await _createBudgetItemsTableIfNeeded(db);   // ✅
   }
 
   static Future<void> _createClientsTableIfNeeded(Database db) async {
-    // ✅ schema NOVO do cliente
     await db.execute('''
       CREATE TABLE IF NOT EXISTS clients (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
-
         nome_fantasia TEXT NOT NULL,
         razao_social TEXT,
         cnpj TEXT,
@@ -122,7 +126,6 @@ class AppDatabase {
         numero TEXT,
         cep TEXT
       )
-
     ''');
   }
 
@@ -139,6 +142,37 @@ class AppDatabase {
         remind_delivery INTEGER NOT NULL DEFAULT 0,
         remind_days_before INTEGER NOT NULL DEFAULT 1,
         FOREIGN KEY (client_id) REFERENCES clients (id)
+      )
+    ''');
+  }
+
+  // ✅ Tabela de orçamentos
+  static Future<void> _createBudgetsTableIfNeeded(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS budgets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER NOT NULL,
+        created_at INTEGER NOT NULL,
+        valid_until INTEGER,
+        notes TEXT,
+        discount REAL,
+        status TEXT NOT NULL DEFAULT 'rascunho',
+        FOREIGN KEY (client_id) REFERENCES clients (id)
+      )
+    ''');
+  }
+
+  // ✅ Tabela de itens do orçamento
+  static Future<void> _createBudgetItemsTableIfNeeded(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS budget_items (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        budget_id INTEGER NOT NULL,
+        description TEXT NOT NULL,
+        quantity REAL NOT NULL DEFAULT 1,
+        unit_price REAL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY (budget_id) REFERENCES budgets (id) ON DELETE CASCADE
       )
     ''');
   }

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../features/clients/domain/client.dart';
+import '../../domain/client.dart';
 
 class ClientForm extends StatefulWidget {
   final Client? client;

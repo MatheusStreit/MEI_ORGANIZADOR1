@@ -1,6 +1,7 @@
 plugins {
     id("com.android.application")
     id("kotlin-android")
+    // O plugin do Flutter deve vir depois
     id("dev.flutter.flutter-gradle-plugin")
 }
 
@@ -10,9 +11,10 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
+
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-        isCoreLibraryDesugaringEnabled = true
     }
 
     kotlinOptions {
@@ -21,14 +23,17 @@ android {
 
     defaultConfig {
         applicationId = "com.example.mei_organizador1"
+
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
+
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
 
     buildTypes {
         release {
+            // Por enquanto assina com debug (ok para testes)
             signingConfig = signingConfigs.getByName("debug")
         }
     }
