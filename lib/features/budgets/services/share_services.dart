@@ -6,9 +6,6 @@ class ShareService {
     required File pdfFile,
     required String mensagem,
   }) async {
-    await Share.shareXFiles(
-      [XFile(pdfFile.path)],
-      text: mensagem,
-    );
+    await Share.shareXFiles([XFile(pdfFile.path)], text: mensagem);
   }
 }

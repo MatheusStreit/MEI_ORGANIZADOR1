@@ -4,7 +4,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 
-import '../models/orcamento.dart'; // ajuste o caminho
+import '../models/orcamento.dart';
 
 class OrcamentoPdfService {
   final _moeda = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
@@ -13,7 +13,7 @@ class OrcamentoPdfService {
   Future<File> gerarPdf({
     required Orcamento orc,
     required String nomeEmpresa,
-    String? cnpj,
+    String? documentoEmpresa,
     String? telefoneEmpresa,
     String? enderecoEmpresa,
     String? observacoes,
@@ -27,7 +27,7 @@ class OrcamentoPdfService {
         build: (_) => [
           _cabecalho(
             nomeEmpresa: nomeEmpresa,
-            cnpj: cnpj,
+            documentoEmpresa: documentoEmpresa,
             telefoneEmpresa: telefoneEmpresa,
             enderecoEmpresa: enderecoEmpresa,
           ),
@@ -50,8 +50,8 @@ class OrcamentoPdfService {
     final bytes = await doc.save();
 
     final dir = await getApplicationDocumentsDirectory();
-    final safeNome = _sanitizeFileName('orcamento_${orc.id}_${_data.format(orc.data)}.pdf');
-    final file = File('${dir.path}/$safeNome');
+    final fileName = _sanitizeFileName('orcamento_${orc.id}_${_data.format(orc.data)}.pdf');
+    final file = File('${dir.path}/$fileName');
 
     await file.writeAsBytes(bytes, flush: true);
     return file;
@@ -59,7 +59,7 @@ class OrcamentoPdfService {
 
   pw.Widget _cabecalho({
     required String nomeEmpresa,
-    String? cnpj,
+    String? documentoEmpresa,
     String? telefoneEmpresa,
     String? enderecoEmpresa,
   }) {
@@ -75,12 +75,9 @@ class OrcamentoPdfService {
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
               children: [
-                pw.Text(
-                  nomeEmpresa,
-                  style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
-                ),
-                if (cnpj != null && cnpj.trim().isNotEmpty)
-                  pw.Text('CNPJ/CPF: $cnpj'),
+                pw.Text(nomeEmpresa, style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                if (documentoEmpresa != null && documentoEmpresa.trim().isNotEmpty)
+                  pw.Text('Documento: $documentoEmpresa'),
                 if (telefoneEmpresa != null && telefoneEmpresa.trim().isNotEmpty)
                   pw.Text('Telefone: $telefoneEmpresa'),
                 if (enderecoEmpresa != null && enderecoEmpresa.trim().isNotEmpty)
@@ -94,10 +91,7 @@ class OrcamentoPdfService {
               border: pw.Border.all(width: 1),
               borderRadius: pw.BorderRadius.circular(6),
             ),
-            child: pw.Text(
-              'ORÇAMENTO',
-              style: pw.TextStyle(fontWeight: pw.FontWeight.bold),
-            ),
+            child: pw.Text('ORÇAMENTO', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
           ),
         ],
       ),
@@ -151,7 +145,6 @@ class OrcamentoPdfService {
       data: rows,
       headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
       headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
-      cellAlignment: pw.Alignment.centerLeft,
       cellPadding: const pw.EdgeInsets.symmetric(vertical: 6, horizontal: 6),
       columnWidths: {
         0: const pw.FlexColumnWidth(3.5),
@@ -181,7 +174,7 @@ class OrcamentoPdfService {
           children: [
             linha('Subtotal', _moeda.format(orc.subtotal)),
             if (orc.desconto > 0) linha('Desconto', '- ${_moeda.format(orc.desconto)}'),
-            if ((orc.taxa ?? 0) > 0) linha('Taxa', _moeda.format(orc.taxa)),
+            if ((orc.taxa ?? 0) > 0) linha('Taxa', _moeda.format(orc.taxa ?? 0)),
             pw.Divider(),
             linha('Total', _moeda.format(orc.total), bold: true),
           ],
@@ -227,7 +220,6 @@ class OrcamentoPdfService {
 
   int _dec(double v) => (v % 1 == 0) ? 0 : 2;
 
-  String _sanitizeFileName(String name) {
-    return name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').replaceAll(' ', '_');
-  }
+  String _sanitizeFileName(String name) =>
+      name.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').replaceAll(' ', '_');
 }

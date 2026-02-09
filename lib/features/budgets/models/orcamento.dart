@@ -2,7 +2,7 @@ class Orcamento {
   final int id;
   final String clienteNome;
   final String? clienteTelefone;
-  final String? clienteDocumento; // CPF/CNPJ
+  final String? clienteDocumento;
   final DateTime data;
   final DateTime? validade;
   final List<OrcamentoItem> itens;
