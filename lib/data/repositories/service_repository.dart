@@ -1,4 +1,4 @@
-import '../../services/notification_service.dart';
+import '../../services/notifications_service.dart';
 import '../../features/services/domain/service.dart';
 import '../../features/services/data/service_dao.dart';
 
@@ -17,13 +17,22 @@ class ServiceRepository {
   }
 
   Future<int> save(Service s, {required bool isEdit}) async {
-    late final int id;
+    int id;
 
-    if (!isEdit) {
-      id = await _dao.insert(s);
-    } else {
+    if (isEdit) {
+      // ✅ evita crash com s.id!
+      if (s.id == null) {
+        throw StateError('ServiceRepository.save: isEdit=true mas s.id é null');
+      }
       await _dao.update(s);
       id = s.id!;
+    } else {
+      id = await _dao.insert(s);
+
+      // ✅ valida retorno do insert
+      if (id <= 0) {
+        throw StateError('ServiceRepository.save: insert retornou id inválido: $id');
+      }
     }
 
     final saved = Service(
@@ -38,18 +47,22 @@ class ServiceRepository {
       remindDaysBefore: s.remindDaysBefore,
     );
 
+
+    // ✅ garante que cancelar/agendar nunca use id nulo
     if (saved.remindDelivery) {
       await _notifications.scheduleServiceReminder(saved);
     } else {
-      await _notifications.cancelServiceReminder(saved.id!);
+      await _notifications.cancelServiceReminder(id);
     }
 
     return id;
   }
 
   Future<void> delete(Service s) async {
-    if (s.id == null) return;
-    await _dao.delete(s.id!);
-    await _notifications.cancelServiceReminder(s.id!);
+    final id = s.id;
+    if (id == null) return;
+
+    await _dao.delete(id);
+    await _notifications.cancelServiceReminder(id);
   }
 }
